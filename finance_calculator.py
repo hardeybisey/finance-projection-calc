@@ -1,77 +1,129 @@
 import streamlit as st
 import math
 
-st.set_page_config(page_title="Finance Projection Calculator", layout="wide")
+st.set_page_config(page_title="Finance Projection Calculator", layout="centered")
 
 st.title("🏠🚗 Personal Finance Projection Calculator")
 
-# Mode
-mode = st.radio("Select mode:", ["House Purchase", "Car Purchase"])
+st.write("Use this tool to estimate either the **salary required** for a target house/car, "
+         "or the **maximum price you can afford** given your current salary and expenses.")
 
-# Inputs
-st.sidebar.header("Inputs")
+# Tabs for House and Car
+tab1, tab2 = st.tabs(["🏠 House", "🚗 Car"])
 
-price = st.sidebar.number_input("Price (£)", min_value=0, value=300000, step=1000)
-deposit_percent = st.sidebar.number_input("Deposit (%)", min_value=0.0, max_value=100.0, value=15.0, step=0.5)
-deposit_amount_override = st.sidebar.number_input("Deposit amount (£)", min_value=0, value=0, step=1000)
-interest_rate = st.sidebar.number_input("Interest rate (%)", min_value=0.0, max_value=100.0, value=5.0, step=0.1)
-term_years = st.sidebar.number_input("Term (years)", min_value=1, max_value=40, value=25, step=1)
-arrangement_fee = st.sidebar.number_input("Arrangement fee (£)", min_value=0, value=1000, step=100)
-legal_fees = st.sidebar.number_input("Conveyancing & Legal fees (£)", min_value=0, value=1500, step=100) if mode == "House Purchase" else 0
-monthly_overheads = st.sidebar.number_input("Monthly overhead costs (£)", min_value=0, value=500, step=50)
-monthly_expenses = st.sidebar.number_input("Other monthly expenses (£)", min_value=0, value=1000, step=50)
-loan_to_income_ratio = st.sidebar.number_input("Loan-to-Income ratio (e.g. 4.5)", min_value=1.0, max_value=10.0, value=4.5, step=0.1)
-net_monthly_salary = st.sidebar.number_input("Net monthly salary (£)", min_value=0, value=3000, step=100)
-tax_pct = st.sidebar.number_input("Effective tax rate (%)", min_value=0.0, max_value=100.0, value=35.0, step=0.5)
+def monthly_payment(principal, annual_rate, years):
+    r = annual_rate / 100 / 12
+    n = years * 12
+    if r == 0:
+        return principal / n
+    return principal * (r * (1 + r) ** n) / ((1 + r) ** n - 1)
 
-# Calculations
-deposit_amount = deposit_amount_override if deposit_amount_override > 0 else price * deposit_percent / 100
-mortgage_amount = price - deposit_amount
-ltv = (mortgage_amount / price) * 100 if price > 0 else 0
+def required_salary(mortgage_amount, monthly_payment, monthly_expenses, lti, tax_rate):
+    # Method 1: LTI
+    gross_lti = mortgage_amount / lti if lti > 0 else 0
+    # Method 2: Affordability (net → gross)
+    needed_net_monthly = monthly_payment + monthly_expenses
+    gross_afford = (needed_net_monthly * 12) / (1 - tax_rate / 100) if tax_rate < 100 else 0
+    return gross_lti, gross_afford, max(gross_lti, gross_afford)
 
-monthly_rate = (interest_rate / 100) / 12
-n_payments = term_years * 12
-if monthly_rate > 0:
-    monthly_payment = mortgage_amount * (monthly_rate * (1 + monthly_rate) ** n_payments) / ((1 + monthly_rate) ** n_payments - 1)
-else:
-    monthly_payment = mortgage_amount / n_payments
+def affordable_price(net_monthly_salary, monthly_expenses, deposit_pct, rate, term, lti, tax_rate):
+    # Net → Gross
+    net_annual = net_monthly_salary * 12
+    gross_annual = net_annual / (1 - tax_rate / 100) if tax_rate < 100 else net_annual
 
-annual_payment = monthly_payment * 12
+    # Max mortgage by affordability (payment must fit in net)
+    available_for_mortgage = max(0, net_monthly_salary - monthly_expenses)
+    # Solve approx: assume affordable mortgage is available_for_mortgage * term
+    affordable_mortgage = available_for_mortgage * 12 * term  
 
-# From net salary
-net_annual_salary = net_monthly_salary * 12
-gross_annual_salary = net_annual_salary / (1 - tax_pct / 100) if tax_pct < 100 else net_annual_salary
+    # Max mortgage by LTI
+    affordable_by_lti = gross_annual * lti
 
-# Required incomes
-min_gross_by_lti = mortgage_amount / loan_to_income_ratio if loan_to_income_ratio > 0 else 0
-min_gross_by_afford = ((monthly_payment + monthly_overheads + monthly_expenses) * 12) / (1 - tax_pct / 100) if tax_pct < 100 else 0
-suggested_min_gross = max(min_gross_by_lti, min_gross_by_afford)
+    # Take the lower (conservative)
+    max_mortgage = min(affordable_mortgage, affordable_by_lti)
+    price = max_mortgage / (1 - deposit_pct / 100)
+    return price, gross_annual, net_annual
 
-# Output
-st.subheader("Results")
-col1, col2 = st.columns(2)
+# --- HOUSE ---
+with tab1:
+    st.header("🏠 House Calculator")
+    subtab1, subtab2 = st.tabs(["📈 Salary Projection", "💰 Affordability"])
 
-with col1:
-    st.metric("House/Car Price (£)", f"{price:,.0f}")
-    st.metric("Deposit (£)", f"{deposit_amount:,.0f}")
-    st.metric("Mortgage/Loan Amount (£)", f"{mortgage_amount:,.0f}")
-    st.metric("Loan-to-Value (%)", f"{ltv:.1f}%")
-    st.metric("Monthly Mortgage/Loan Payment (£)", f"{monthly_payment:,.0f}")
-    st.metric("Annual Mortgage/Loan Payment (£)", f"{annual_payment:,.0f}")
+    with subtab1:
+        st.subheader("How much salary do I need for this house?")
+        price = st.number_input("House price (£)", value=300000, step=5000, help="Target house price.")
+        deposit_pct = st.slider("Deposit (%)", 0, 50, 15, help="Percent of price you’ll pay upfront.")
+        rate = st.number_input("Mortgage interest rate (%)", value=5.0, step=0.1)
+        term = st.slider("Mortgage term (years)", 1, 40, 25)
+        lti = st.number_input("Loan-to-Income multiple", value=4.5, step=0.1, help="Bank multiple of gross salary.")
+        monthly_expenses = st.number_input("Monthly expenses (£)", value=1500, step=100)
+        tax_rate = st.slider("Effective tax rate (%)", 0, 60, 35)
 
-with col2:
-    st.metric("Net Monthly Salary (£)", f"{net_monthly_salary:,.0f}")
-    st.metric("Net Annual Salary (£)", f"{net_annual_salary:,.0f}")
-    st.metric("Est. Gross Annual Salary (£)", f"{gross_annual_salary:,.0f}")
-    st.metric("Min Gross Income Required (LTI)", f"{min_gross_by_lti:,.0f}")
-    st.metric("Min Gross Income Required (Afford)", f"{min_gross_by_afford:,.0f}")
-    st.metric("Suggested Min Gross Income (£)", f"{suggested_min_gross:,.0f}")
+        deposit = price * deposit_pct / 100
+        mortgage = price - deposit
+        pay = monthly_payment(mortgage, rate, term)
 
-# Fees
-if mode == "House Purchase":
-    st.info(f"One-off fees: Arrangement £{arrangement_fee:,.0f} + Legal £{legal_fees:,.0f} = £{arrangement_fee + legal_fees:,.0f}")
-else:
-    st.info(f"One-off fees: Arrangement £{arrangement_fee:,.0f}")
+        gross_lti, gross_afford, gross_needed = required_salary(mortgage, pay, monthly_expenses, lti, tax_rate)
 
-# Footer
-st.caption("💡 Net salary is primary input. Gross salary is estimated using the flat effective tax rate. Adjust 'Effective tax rate' to match your situation.")
+        st.success(f"💡 Required Gross Annual Salary: **£{gross_needed:,.0f}**")
+        st.write(f"- By Loan-to-Income: £{gross_lti:,.0f}") 
+        st.write(f"- By Affordability: £{gross_afford:,.0f}")
+        st.write(f"Monthly payment ≈ £{pay:,.0f}")
+
+    with subtab2:
+        st.subheader("How much house can I afford?")
+        net_monthly = st.number_input("Net monthly salary (£)", value=3000, step=100)
+        monthly_expenses = st.number_input("Monthly expenses (£)", value=1500, step=100)
+        deposit_pct = st.slider("Deposit (%)", 0, 50, 15)
+        rate = st.number_input("Mortgage interest rate (%)", value=5.0, step=0.1)
+        term = st.slider("Mortgage term (years)", 1, 40, 25)
+        lti = st.number_input("Loan-to-Income multiple", value=4.5, step=0.1)
+        tax_rate = st.slider("Effective tax rate (%)", 0, 60, 35)
+
+        price, gross, net = affordable_price(net_monthly, monthly_expenses, deposit_pct, rate, term, lti, tax_rate)
+
+        st.success(f"💡 Maximum Affordable House Price: **£{price:,.0f}**")
+        st.write(f"- Est. Gross Annual Salary: £{gross:,.0f}")
+        st.write(f"- Net Annual Salary: £{net:,.0f}")
+
+# --- CAR ---
+with tab2:
+    st.header("🚗 Car Calculator")
+    subtab1, subtab2 = st.tabs(["📈 Salary Projection", "💰 Affordability"])
+
+    with subtab1:
+        st.subheader("How much salary do I need for this car?")
+        price = st.number_input("Car price (£)", value=30000, step=1000)
+        deposit_pct = st.slider("Deposit (%)", 0, 50, 10)
+        rate = st.number_input("Loan interest rate (%)", value=7.0, step=0.1)
+        term = st.slider("Loan term (years)", 1, 7, 5)
+        lti = st.number_input("Loan-to-Income multiple", value=2.0, step=0.1)
+        monthly_expenses = st.number_input("Monthly expenses (£)", value=1000, step=100)
+        tax_rate = st.slider("Effective tax rate (%)", 0, 60, 35)
+
+        deposit = price * deposit_pct / 100
+        loan = price - deposit
+        pay = monthly_payment(loan, rate, term)
+
+        gross_lti, gross_afford, gross_needed = required_salary(loan, pay, monthly_expenses, lti, tax_rate)
+
+        st.success(f"💡 Required Gross Annual Salary: **£{gross_needed:,.0f}**")
+        st.write(f"- By Loan-to-Income: £{gross_lti:,.0f}") 
+        st.write(f"- By Affordability: £{gross_afford:,.0f}")
+        st.write(f"Monthly payment ≈ £{pay:,.0f}")
+
+    with subtab2:
+        st.subheader("How much car can I afford?")
+        net_monthly = st.number_input("Net monthly salary (£)", value=2500, step=100)
+        monthly_expenses = st.number_input("Monthly expenses (£)", value=1000, step=100)
+        deposit_pct = st.slider("Deposit (%)", 0, 50, 10)
+        rate = st.number_input("Loan interest rate (%)", value=7.0, step=0.1)
+        term = st.slider("Loan term (years)", 1, 7, 5)
+        lti = st.number_input("Loan-to-Income multiple", value=2.0, step=0.1)
+        tax_rate = st.slider("Effective tax rate (%)", 0, 60, 35)
+
+        price, gross, net = affordable_price(net_monthly, monthly_expenses, deposit_pct, rate, term, lti, tax_rate)
+
+        st.success(f"💡 Maximum Affordable Car Price: **£{price:,.0f}**")
+        st.write(f"- Est. Gross Annual Salary: £{gross:,.0f}")
+        st.write(f"- Net Annual Salary: £{net:,.0f}")
