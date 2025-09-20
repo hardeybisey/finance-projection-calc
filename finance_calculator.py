@@ -51,11 +51,11 @@ with tab1:
 
     with subtab1:
         st.subheader("How much salary do I need for this house?")
-        price = st.number_input("House price (£)", value=300000, step=5000, help="Target house price.")
+        price = st.number_input("House price (£)", value=300000, step=5000, help="Target house price.", key="o")
         deposit_pct = st.slider("Deposit (%)", 0, 50, 15, help="Percent of price you’ll pay upfront.")
-        rate = st.number_input("Mortgage interest rate (%)", value=5.0, step=0.1)
+        rate = st.number_input("Mortgage interest rate (%)", value=5.0, step=0.1, key="m")
         term = st.slider("Mortgage term (years)", 1, 40, 25)
-        lti = st.number_input("Loan-to-Income multiple", value=4.5, step=0.1, help="Bank multiple of gross salary.")
+        lti = st.number_input("Loan-to-Income multiple", value=4.5, step=0.1, help="Bank multiple of gross salary.", key="l")
         monthly_expenses = st.number_input("Monthly expenses (£)", value=1500, step=100)
         tax_rate = st.slider("Effective tax rate (%)", 0, 60, 35)
 
@@ -72,12 +72,12 @@ with tab1:
 
     with subtab2:
         st.subheader("How much house can I afford?")
-        net_monthly = st.number_input("Net monthly salary (£)", value=3000, step=100)
-        monthly_expenses = st.number_input("Monthly expenses (£)", value=1500, step=100)
+        net_monthly = st.number_input("Net monthly salary (£)", value=3000, step=100, key="h")
+        monthly_expenses = st.number_input("Monthly expenses (£)", value=1500, step=100, key="i")
         deposit_pct = st.slider("Deposit (%)", 0, 50, 15)
-        rate = st.number_input("Mortgage interest rate (%)", value=5.0, step=0.1)
+        rate = st.number_input("Mortgage interest rate (%)", value=5.0, step=0.1, key="j")
         term = st.slider("Mortgage term (years)", 1, 40, 25)
-        lti = st.number_input("Loan-to-Income multiple", value=4.5, step=0.1)
+        lti = st.number_input("Loan-to-Income multiple", value=4.5, step=0.1, key="k")
         tax_rate = st.slider("Effective tax rate (%)", 0, 60, 35)
 
         price, gross, net = affordable_price(net_monthly, monthly_expenses, deposit_pct, rate, term, lti, tax_rate)
@@ -93,11 +93,11 @@ with tab2:
 
     with subtab1:
         st.subheader("How much salary do I need for this car?")
-        price = st.number_input("Car price (£)", value=30000, step=1000)
+        price = st.number_input("Car price (£)", value=30000, step=1000, key="a")
         deposit_pct = st.slider("Deposit (%)", 0, 50, 10)
-        rate = st.number_input("Loan interest rate (%)", value=7.0, step=0.1)
+        rate = st.number_input("Loan interest rate (%)", value=7.0, step=0.1, key="b")
         term = st.slider("Loan term (years)", 1, 7, 5)
-        lti = st.number_input("Loan-to-Income multiple", value=2.0, step=0.1)
+        lti = st.number_input("Loan-to-Income multiple", value=2.0, step=0.1, key="c")
         monthly_expenses = st.number_input("Monthly expenses (£)", value=1000, step=100)
         tax_rate = st.slider("Effective tax rate (%)", 0, 60, 35)
 
@@ -114,12 +114,12 @@ with tab2:
 
     with subtab2:
         st.subheader("How much car can I afford?")
-        net_monthly = st.number_input("Net monthly salary (£)", value=2500, step=100)
-        monthly_expenses = st.number_input("Monthly expenses (£)", value=1000, step=100)
+        net_monthly = st.number_input("Net monthly salary (£)", value=2500, step=100, key="d")
+        monthly_expenses = st.number_input("Monthly expenses (£)", value=1000, step=100, key="e")
         deposit_pct = st.slider("Deposit (%)", 0, 50, 10)
-        rate = st.number_input("Loan interest rate (%)", value=7.0, step=0.1)
+        rate = st.number_input("Loan interest rate (%)", value=7.0, step=0.1, key="f")
         term = st.slider("Loan term (years)", 1, 7, 5)
-        lti = st.number_input("Loan-to-Income multiple", value=2.0, step=0.1)
+        lti = st.number_input("Loan-to-Income multiple", value=2.0, step=0.1, key="g")
         tax_rate = st.slider("Effective tax rate (%)", 0, 60, 35)
 
         price, gross, net = affordable_price(net_monthly, monthly_expenses, deposit_pct, rate, term, lti, tax_rate)
